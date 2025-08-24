@@ -1,0 +1,17 @@
+name: pc_anno_gen
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.13
+  - pip
+  - numpy
+  - matplotlib
+  - pillow
+  - plyfile
+  - open3d
+  - pip:
+      - openai
+      - rich
+      - orjson
+      - click

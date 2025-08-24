@@ -1,0 +1,9 @@
+open3d>=0.18
+numpy>=1.23
+plyfile>=1.0
+matplotlib>=3.6
+Pillow>=9.3
+openai>=1.37
+rich>=13.7
+orjson>=3.9
+click>=8.1
