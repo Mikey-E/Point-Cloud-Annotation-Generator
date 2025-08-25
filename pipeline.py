@@ -155,7 +155,7 @@ def write_jsonl(path: str, record: dict) -> None:
 @click.option("--width", default=1280, show_default=True, help="Render width")
 @click.option("--height", default=960, show_default=True, help="Render height")
 @click.option("--point-size", default=2.5, show_default=True, help="Point size for rendering")
-@click.option("--backend", type=click.Choice(["auto","offscreen","legacy","mpl"]), default="auto", show_default=True)
+@click.option("--backend", type=click.Choice(["auto","offscreen","legacy","mpl"]), default="mpl", show_default=True)
 @click.option("--max-points", default=200000, show_default=True, help="Max points when using mpl fallback")
 @click.option("--radius-scale", default=1.2, show_default=True)
 @click.option("--tight/--no-tight", default=False, show_default=True)

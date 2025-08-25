@@ -5,7 +5,7 @@ Generate multi-view images from point cloud (PLY) files, caption those images wi
 ## Features
 
 - PLY loader with color normalization (Open3D)
-- Choice of backend rendering (Open3D offscreen, legacy visualizer, matplotlib fallback)
+- Rendering backends: matplotlib (default), Open3D offscreen, or Open3D legacy visualizer
 - Image captioning via OpenAI (You need an API key and funds)
 - Per-point-cloud caption summarization
 - Simple caching/resume and structured outputs (JSON + JSONL)
@@ -30,7 +30,7 @@ export OPENAI_API_KEY=sk-...
 
 ```bash
 python pipeline.py /path/to/ply_dataset --out /path/to/output \
-  --width 1280 --height 960 --backend auto \
+  --width 1280 --height 960 \
   --caption-model gpt-4o-mini --summary-model gpt-4o-mini
 ```
 
@@ -47,11 +47,7 @@ Outputs:
 
 ## Notes on rendering in headless Linux
 
-Open3D OffscreenRenderer requires proper EGL/OSMesa setup. This project falls back to the legacy visualizer and finally to a matplotlib-based renderer if offscreen rendering is unavailable. You can force a backend with `--backend offscreen|legacy|mpl`.
-
-## Development
-
-- Format/lint: suggested tools include black/ruff/mypy (add as desired)
+Default backend is matplotlib, which works in most headless environments. For higher-fidelity renders, you can choose Open3D backends with `--backend offscreen|legacy`. The offscreen backend requires proper EGL/OSMesa setup; if unavailable, use `legacy` or stay on `mpl`. (Untested)
 
 ## License
 

@@ -222,10 +222,10 @@ def render_views_mpl(pcd, out_dir, w, h, azimuths, elev_deg, radius_scale, point
                 print(f"[WARN] Tight crop failed: {e}")
 
 
-def render_views(pcd, out_dir, w=1024, h=768, azimuths=(0,60,120,180,240,300), elev_deg=20, radius_scale=1.2, point_size=2.0, backend="auto", max_points=200000, tight=False, margin=4, pad_frac=0.05):
+def render_views(pcd, out_dir, w=1024, h=768, azimuths=(0,60,120,180,240,300), elev_deg=20, radius_scale=1.2, point_size=2.0, backend="mpl", max_points=200000, tight=False, margin=4, pad_frac=0.05):
     """Render multiple orbit views.
 
-    backend: 'auto' (try offscreen then legacy), 'offscreen', or 'legacy'.
+    backend: 'mpl' (default), 'auto' (try offscreen then legacy then mpl), 'offscreen', or 'legacy'.
     """
     os.makedirs(out_dir, exist_ok=True)
     # Quick no-op for empty point cloud
@@ -254,7 +254,10 @@ def render_views(pcd, out_dir, w=1024, h=768, azimuths=(0,60,120,180,240,300), e
             if backend == "legacy":
                 raise
             print(f"[WARN] Legacy Visualizer failed ({e}); falling back to matplotlib.")
-    print("[INFO] Using matplotlib fallback backend.")
+    if backend == "mpl":
+        print("[INFO] Using matplotlib backend.")
+    else:
+        print("[INFO] Falling back to matplotlib backend.")
     render_views_mpl(pcd, out_dir, w, h, azimuths, elev_deg, radius_scale, point_size, max_points=max_points, tight=tight, margin=margin, pad_frac=pad_frac)
 
 if __name__=="__main__":
@@ -264,7 +267,7 @@ if __name__=="__main__":
     parser.add_argument("--width", type=int, default=1280, help="Image width")
     parser.add_argument("--height", type=int, default=960, help="Image height")
     parser.add_argument("--point_size", type=float, default=2.5, help="Point size in render")
-    parser.add_argument("--backend", choices=["auto","offscreen","legacy","mpl"], default="auto", help="Rendering backend selection")
+    parser.add_argument("--backend", choices=["auto","offscreen","legacy","mpl"], default="mpl", help="Rendering backend selection")
     parser.add_argument("--max_points", type=int, default=200000, help="Max points for matplotlib fallback (sampling)")
     parser.add_argument("--radius_scale", type=float, default=1.2, help="Distance scale for camera radius (smaller -> tighter framing)")
     parser.add_argument("--tight", action="store_true", help="Crop whitespace tightly (mpl backend)")
