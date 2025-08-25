@@ -4,7 +4,7 @@ Generate multi-view images from point cloud (PLY) files, caption those images wi
 
 ## Features
 
-- Robust PLY loader with color normalization (Open3D)
+- PLY loader with color normalization (Open3D)
 - Multi-backend rendering (Open3D offscreen, legacy visualizer, matplotlib fallback)
 - Image captioning via OpenAI
 - Per-point-cloud caption summarization
