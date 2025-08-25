@@ -35,9 +35,9 @@ python pipeline.py /path/to/ply_dataset --out /path/to/output \
 ```
 
 Outputs:
-- For each PLY: rendered images are stored under a descriptive render directory
-- For each PLY: an `annotations.json` with per-image captions and a `summary`
-- At the output root: `dataset_annotations.jsonl` one record per PLY
+- The output directory mirrors the input folder structure. For each input PLY, outputs are written under: `<out>/<relative_input_dirs>/<ply_stem>/`
+- Inside each PLY folder: a descriptive render directory plus an `annotations.json` with per-image captions and a `summary`
+- At the output root: `dataset_annotations.jsonl` (one record per PLY; includes summary and paths only — per-view captions are stored in each PLY's annotations.json)
 
 ## Repository layout
 

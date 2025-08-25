@@ -99,13 +99,22 @@ def caption_image(client: OpenAI, image_path: str, model: str, prompt: str) -> s
         mt = "image/png"
     comp = client.chat.completions.create(
         model=model,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": f"data:{mt};base64,{b64}"}},
-            ],
-        }],
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an image captioning assistant. Strictly omit any mention of the background or backdrop, "
+                    "describe the main object(s) and its visual attributes."
+                ),
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:{mt};base64,{b64}"}},
+                ],
+            },
+        ],
     )
     return (comp.choices[0].message.content or "").strip()
 
@@ -114,7 +123,8 @@ def summarize_captions(client: OpenAI, captions: List[str], model: str, extra_in
     parts = "\n".join(f"- {c}" for c in captions if c)
     prompt = (
         "You are given multiple captions of the same 3D object from different views.\n"
-        "Summarize them into a single, concise, self-contained caption (1-3 sentences) that captures the object's identity, shape, parts, color/material, and any notable features."
+        "Summarize them into a single, concise, self-contained caption (1-3 sentences) that captures the object's identity, shape, parts, color/material, and any notable features.\n"
+        "Ignore any descriptions of the background or backdrop."
     )
     if extra_instruction:
         prompt += f"\nConstraints: {extra_instruction}"
@@ -147,6 +157,15 @@ def write_jsonl(path: str, record: dict) -> None:
         f.write(orjson.dumps(record) + b"\n")
 
 
+def jsonl_record_from_annotation(ann: PointCloudAnnotation) -> dict:
+    """Build the compact JSONL record without per-view image/caption pairs."""
+    return {
+        "ply_path": ann.ply_path,
+        "render_dir": ann.render_dir,
+        "summary": ann.summary,
+    }
+
+
 @click.command()
 @click.argument("ply_root", type=click.Path(exists=True, path_type=Path))
 @click.option("--out", "out_root", type=click.Path(path_type=Path), default=Path("output"), show_default=True,
@@ -162,7 +181,7 @@ def write_jsonl(path: str, record: dict) -> None:
 @click.option("--margin", default=4, show_default=True)
 @click.option("--pad-frac", default=0.05, show_default=True)
 @click.option("--caption-model", default="gpt-4o-mini", show_default=True)
-@click.option("--caption-prompt", default="Describe this image succinctly.", show_default=True)
+@click.option("--caption-prompt", default="Describe only the main object(s). Omit any background or backdrop information.", show_default=True)
 @click.option("--summary-model", default="gpt-4o-mini", show_default=True)
 @click.option("--summary-extra", default=None, help="Extra instruction/constraints for summarization")
 @click.option("--resume/--no-resume", default=True, show_default=True, help="Reuse cached annotations if present")
@@ -192,15 +211,18 @@ def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, 
     ) as progress:
         task = progress.add_task("Processing PLYs", total=len(ply_paths))
         for ply_path in ply_paths:
+            # Preserve input directory structure under the output root
+            rel_ply_path = os.path.relpath(ply_path, start=str(ply_root))
+            rel_dir = os.path.dirname(rel_ply_path)
             stem = os.path.splitext(os.path.basename(ply_path))[0]
-            ply_out_dir = out_root / stem
+            ply_out_dir = out_root / rel_dir / stem if rel_dir else out_root / stem
             ensure_dir(str(ply_out_dir))
             ann_path = ply_out_dir / "annotations.json"
 
             cached = maybe_load_cached(str(ann_path)) if resume else None
             if cached and cached.summary:
                 console.print(f"[green]Cached[/green] {stem}")
-                write_jsonl(str(jsonl_path), asdict(cached))
+                write_jsonl(str(jsonl_path), jsonl_record_from_annotation(cached))
                 progress.advance(task)
                 continue
 
@@ -234,14 +256,14 @@ def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, 
                     summary = f"[ERROR during summarization: {e}]"
 
             ann = PointCloudAnnotation(
-                ply_path=os.path.relpath(ply_path, start=str(ply_root)),
+                ply_path=rel_ply_path,
                 render_dir=os.path.relpath(render_dir, start=str(ply_out_dir)),
                 per_view=per_view,
                 summary=summary,
             )
 
             write_json(str(ann_path), asdict(ann))
-            write_jsonl(str(jsonl_path), asdict(ann))
+            write_jsonl(str(jsonl_path), jsonl_record_from_annotation(ann))
             console.print(f"[cyan]Done[/cyan] {stem}")
             progress.advance(task)
 
