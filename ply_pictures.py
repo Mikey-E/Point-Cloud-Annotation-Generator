@@ -90,7 +90,6 @@ def render_views_offscreen(pcd, out_dir, w, h, azimuths, elev_deg, radius_scale,
 
 def render_views_legacy(pcd, out_dir, w, h, azimuths, elev_deg, radius_scale, point_size):
     """Fallback renderer using the legacy Visualizer (no OffscreenRenderer / EGL).
-
     This creates a hidden window and uses camera parameters to save images.
     """
     aabb = pcd.get_axis_aligned_bounding_box()
@@ -145,7 +144,6 @@ def render_views_legacy(pcd, out_dir, w, h, azimuths, elev_deg, radius_scale, po
 
 def render_views_mpl(pcd, out_dir, w, h, azimuths, elev_deg, radius_scale, point_size, max_points=200000, tight=False, margin=4, pad_frac=0.05):
     """Fallback using matplotlib 3D scatter (orthographic-ish).
-
     Parameters:
         tight: if True, post-process image to crop surrounding whitespace.
         margin: pixel margin to retain after cropping (white background assumed).
@@ -223,7 +221,6 @@ def render_views_mpl(pcd, out_dir, w, h, azimuths, elev_deg, radius_scale, point
 
 def render_views(pcd, out_dir, w=1024, h=768, azimuths=(0,60,120,180,240,300), elev_deg=20, radius_scale=1.2, point_size=2.0, backend="mpl", max_points=200000, tight=False, margin=4, pad_frac=0.05):
     """Render multiple orbit views.
-
     backend: 'mpl' (default), 'auto' (try offscreen then legacy then mpl), 'offscreen', or 'legacy'.
     """
     os.makedirs(out_dir, exist_ok=True)

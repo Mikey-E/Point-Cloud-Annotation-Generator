@@ -245,6 +245,5 @@ def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, 
             console.print(f"[cyan]Done[/cyan] {stem}")
             progress.advance(task)
 
-
 if __name__ == "__main__":
     main()
