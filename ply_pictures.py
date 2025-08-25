@@ -12,7 +12,6 @@ from plyfile import PlyData
 
 def load_ply_as_o3d(path):
     """Load a PLY as an Open3D point cloud with robust color normalization.
-
     Color handling:
       - If red/green/blue present as integers:
           * max<=1     -> assume already normalized
