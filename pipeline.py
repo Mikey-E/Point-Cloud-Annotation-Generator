@@ -62,6 +62,11 @@ def read_json(path: str):
         return orjson.loads(f.read())
 
 
+def write_text(path: str, content: str) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content or "")
+
+
 def detect_images(render_dir: str) -> List[str]:
     pats = ["*.png", "*.jpg", "*.jpeg"]
     files: List[str] = []
@@ -222,6 +227,12 @@ def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, 
             cached = maybe_load_cached(str(ann_path)) if resume else None
             if cached and cached.summary:
                 console.print(f"[green]Cached[/green] {stem}")
+                # Ensure summary .txt exists
+                summary_txt = ply_out_dir / f"{stem}.txt"
+                try:
+                    write_text(str(summary_txt), cached.summary)
+                except Exception as e:
+                    console.print(f"[yellow]Failed to write summary txt for cached {stem}: {e}[/yellow]")
                 write_jsonl(str(jsonl_path), jsonl_record_from_annotation(cached))
                 progress.advance(task)
                 continue
@@ -263,6 +274,9 @@ def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, 
             )
 
             write_json(str(ann_path), asdict(ann))
+            # Write plain-text summary file named after the point cloud
+            summary_txt = ply_out_dir / f"{stem}.txt"
+            write_text(str(summary_txt), summary)
             write_jsonl(str(jsonl_path), jsonl_record_from_annotation(ann))
             console.print(f"[cyan]Done[/cyan] {stem}")
             progress.advance(task)
