@@ -56,5 +56,5 @@ def main(argv=None):
         out = out.strip()
     print(out)
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     main()

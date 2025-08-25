@@ -5,8 +5,8 @@ Generate multi-view images from point cloud (PLY) files, caption those images wi
 ## Features
 
 - PLY loader with color normalization (Open3D)
-- Multi-backend rendering (Open3D offscreen, legacy visualizer, matplotlib fallback)
-- Image captioning via OpenAI
+- Choice of backend rendering (Open3D offscreen, legacy visualizer, matplotlib fallback)
+- Image captioning via OpenAI (You need an API key and funds)
 - Per-point-cloud caption summarization
 - Simple caching/resume and structured outputs (JSON + JSONL)
 
@@ -52,8 +52,6 @@ Open3D OffscreenRenderer requires proper EGL/OSMesa setup. This project falls ba
 ## Development
 
 - Format/lint: suggested tools include black/ruff/mypy (add as desired)
-- Tests: prefer pytest with responses/vcrpy to mock API calls
-- CI: add a GitHub Actions workflow to run lint and tests on PRs
 
 ## License
 
