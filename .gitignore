@@ -24,4 +24,5 @@ renders*/
 *.jpeg
 output/
 logs/
+slurm_logs/
 dataset_annotations.jsonl
