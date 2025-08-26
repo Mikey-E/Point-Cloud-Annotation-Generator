@@ -75,6 +75,10 @@ def detect_images(render_dir: str) -> List[str]:
     return files
 
 
+def is_ply(path: str) -> bool:
+    return path.lower().endswith(".ply")
+
+
 def render_views_for_ply(ply_path: str, out_root: str, width: int, height: int, point_size: float,
                          backend: str, max_points: int, radius_scale: float, tight: bool,
                          margin: int, pad_frac: float) -> str:
@@ -199,7 +203,11 @@ def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, 
     ensure_dir(str(out_root))
     jsonl_path = out_root / "dataset_annotations.jsonl"
 
-    ply_paths = [str(p) for p in sorted(ply_root.glob(pattern)) if p.is_file()]
+    all_paths = [str(p) for p in sorted(ply_root.glob(pattern)) if p.is_file()]
+    ply_paths = [p for p in all_paths if is_ply(p)]
+    skipped = len(all_paths) - len(ply_paths)
+    if skipped > 0:
+        console.print(f"[yellow]Skipping {skipped} non-PLY files matched by pattern.[/yellow]")
     if not ply_paths:
         console.print("[yellow]No PLY files found.[/yellow]")
         raise SystemExit(1)
@@ -237,9 +245,20 @@ def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, 
                 progress.advance(task)
                 continue
 
-            render_dir = render_views_for_ply(
-                ply_path, str(ply_out_dir), width, height, point_size, backend, max_points, radius_scale, tight, margin, pad_frac
-            )
+            # Guard against unexpected non-PLY files (in case of custom patterns)
+            if not is_ply(ply_path):
+                console.print(f"[yellow]Ignoring non-PLY file: {ply_path}[/yellow]")
+                progress.advance(task)
+                continue
+
+            try:
+                render_dir = render_views_for_ply(
+                    ply_path, str(ply_out_dir), width, height, point_size, backend, max_points, radius_scale, tight, margin, pad_frac
+                )
+            except Exception as e:
+                console.print(f"[red]Failed to process {ply_path}: {e}[/red]")
+                progress.advance(task)
+                continue
 
             images = detect_images(render_dir)
             if not images:
