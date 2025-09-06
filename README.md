@@ -44,10 +44,28 @@ Outputs:
 - `ply_pictures.py` – point cloud loading and rendering utilities
 - `image_caption_api.py` – minimal image caption example via OpenAI
 - `pipeline.py` – end-to-end CLI to render, caption, and summarize
+- `caption_preexisting_images.py` – caption existing images in a folder tree and write per-image captions plus per-folder summaries
 
 ## Notes on rendering in headless Linux
 
 Default backend is matplotlib, which works in most headless environments. For higher-fidelity renders, you can choose Open3D backends with `--backend offscreen|legacy`. The offscreen backend requires proper EGL/OSMesa setup; if unavailable, use `legacy` or stay on `mpl`. (Untested)
+
+## Caption preexisting images
+
+If you already have image folders (e.g., renders from another pipeline) and just want captions:
+
+```bash
+python caption_preexisting_images.py /path/to/images_root \
+  --out /path/to/output_images \
+  --caption-model gpt-4o-mini \
+  --summary-model gpt-4o-mini
+```
+
+Behavior:
+- Recursively mirrors the input directory tree under `--out`
+- For each image: writes `<image_stem>.txt` containing its caption
+- For each folder with images: writes `<folder_name>_summary.txt` that summarizes captions in that folder
+- Requires `OPENAI_API_KEY` set in the environment
 
 ## License
 
