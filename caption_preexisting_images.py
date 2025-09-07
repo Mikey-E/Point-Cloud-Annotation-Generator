@@ -176,9 +176,10 @@ def main(input_root: Path, out_root: Path, caption_model: str, caption_prompt: s
                 except Exception as e:
                     console.print(f"[yellow]Failed to write caption for {img}: {e}[/yellow]")
 
-            # Per-folder summary file
+            # Per-folder summary file goes one level up from the image folder
             folder_name = dirpath.name or "folder"
-            summary_path = out_dir / f"{folder_name}_summary.txt"
+            parent_out = out_dir.parent
+            summary_path = parent_out / f"{folder_name}_summary.txt"
             if len(captions) == 1:
                 summary = captions[0]
             else:
