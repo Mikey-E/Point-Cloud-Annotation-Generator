@@ -179,7 +179,9 @@ def jsonl_record_from_annotation(ann: PointCloudAnnotation) -> dict:
 @click.argument("ply_root", type=click.Path(exists=True, path_type=Path))
 @click.option("--out", "out_root", type=click.Path(path_type=Path), default=Path("output"), show_default=True,
               help="Output directory for renders and annotations")
-@click.option("--pattern", default="**/*.ply", show_default=True, help="Glob to find PLYs under ply_root")
+@click.option("--pattern", default="**/*.ply", show_default=True, help="Glob to find PLYs under ply_root (ignored if --shard-manifest used)")
+@click.option("--shard-manifest", type=click.Path(exists=True, dir_okay=False, path_type=Path), default=None,
+              help="Path to a shard manifest text file listing one PLY path per line. Relative paths are resolved against ply_root.")
 @click.option("--width", default=1280, show_default=True, help="Render width")
 @click.option("--height", default=960, show_default=True, help="Render height")
 @click.option("--point-size", default=2.5, show_default=True, help="Point size for rendering")
@@ -195,22 +197,61 @@ def jsonl_record_from_annotation(ann: PointCloudAnnotation) -> dict:
 @click.option("--summary-extra", default=None, help="Extra instruction/constraints for summarization")
 @click.option("--resume/--no-resume", default=True, show_default=True, help="Reuse cached annotations if present")
 @click.option("--dry-run", is_flag=True, help="Skip API calls; only render and emit stubs")
-def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, point_size: float,
+def main(ply_root: Path, out_root: Path, pattern: str, shard_manifest: Optional[Path], width: int, height: int, point_size: float,
          backend: str, max_points: int, radius_scale: float, tight: bool, margin: int, pad_frac: float,
          caption_model: str, caption_prompt: str, summary_model: str, summary_extra: Optional[str], resume: bool,
          dry_run: bool):
-    """Process a dataset of PLYs and generate captions + summaries."""
-    ensure_dir(str(out_root))
-    jsonl_path = out_root / "dataset_annotations.jsonl"
+    """Process a dataset of PLYs and generate captions + summaries.
 
-    all_paths = [str(p) for p in sorted(ply_root.glob(pattern)) if p.is_file()]
-    ply_paths = [p for p in all_paths if is_ply(p)]
-    skipped = len(all_paths) - len(ply_paths)
-    if skipped > 0:
-        console.print(f"[yellow]Skipping {skipped} non-PLY files matched by pattern.[/yellow]")
-    if not ply_paths:
-        console.print("[yellow]No PLY files found.[/yellow]")
-        raise SystemExit(1)
+        Sharding mode:
+            --shard-manifest: directly process only PLYs listed in the given file (one per line, blank and # comment lines ignored).
+    """
+    # Canonicalize roots to avoid redundant '../' sequences when computing relative paths.
+    ply_root = ply_root.resolve()
+    out_root = out_root.resolve()
+    ensure_dir(str(out_root))
+
+    selected_manifest: Optional[Path] = shard_manifest
+    if selected_manifest:
+        # Name partial JSONL uniquely per shard to avoid clobbering across parallel jobs.
+        shard_stem = selected_manifest.stem  # e.g. shards_shard_003_of_16
+        jsonl_path = out_root / f"dataset_annotations__{shard_stem}.jsonl"
+    else:
+        jsonl_path = out_root / "dataset_annotations.jsonl"
+    console.print(f"[blue]Writing annotations JSONL:[/blue] {jsonl_path}")
+
+    if selected_manifest:
+        # Load listed PLY paths; resolve relative to ply_root
+        listed: List[str] = []
+        with open(selected_manifest, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                listed.append(line)
+        resolved: List[str] = []
+        missing = 0
+        for p in listed:
+            path_obj = (ply_root / p) if not os.path.isabs(p) else Path(p)
+            if not path_obj.is_file():
+                missing += 1
+                continue
+            resolved.append(str(path_obj.resolve()))
+        if missing:
+            console.print(f"[yellow]{missing} paths in shard manifest missing; they will be skipped.[/yellow]")
+        ply_paths = [p for p in resolved if is_ply(p)]
+        if not ply_paths:
+            console.print("[yellow]No valid PLY files after reading shard manifest.[/yellow]")
+            raise SystemExit(1)
+    else:
+        all_paths = [str(p) for p in sorted(ply_root.glob(pattern)) if p.is_file()]
+        ply_paths = [p for p in all_paths if is_ply(p)]
+        skipped = len(all_paths) - len(ply_paths)
+        if skipped > 0:
+            console.print(f"[yellow]Skipping {skipped} non-PLY files matched by pattern.[/yellow]")
+        if not ply_paths:
+            console.print("[yellow]No PLY files found.[/yellow]")
+            raise SystemExit(1)
 
     client = None if dry_run else openai_client()
 
@@ -224,9 +265,21 @@ def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, 
     ) as progress:
         task = progress.add_task("Processing PLYs", total=len(ply_paths))
         for ply_path in ply_paths:
-            # Preserve input directory structure under the output root
-            rel_ply_path = os.path.relpath(ply_path, start=str(ply_root))
-            rel_dir = os.path.dirname(rel_ply_path)
+            # Preserve input directory structure under the output root.
+            # Use Path.relative_to for strict containment; fallback to relpath only if needed.
+            try:
+                rel_ply_path = str(Path(ply_path).resolve().relative_to(ply_root))
+            except ValueError:
+                # Not under ply_root (unexpected) -> skip for safety.
+                console.print(f"[red]Skipping file outside ply_root: {ply_path}[/red]")
+                progress.advance(task)
+                continue
+            norm_rel = os.path.normpath(rel_ply_path)
+            if norm_rel.startswith('..') or os.path.isabs(norm_rel):
+                console.print(f"[red]Rejecting anomalous relative path: {ply_path} -> {norm_rel}[/red]")
+                progress.advance(task)
+                continue
+            rel_dir = os.path.dirname(norm_rel)
             stem = os.path.splitext(os.path.basename(ply_path))[0]
             ply_out_dir = out_root / rel_dir / stem if rel_dir else out_root / stem
             ensure_dir(str(ply_out_dir))
@@ -286,7 +339,7 @@ def main(ply_root: Path, out_root: Path, pattern: str, width: int, height: int, 
                     summary = f"[ERROR during summarization: {e}]"
 
             ann = PointCloudAnnotation(
-                ply_path=rel_ply_path,
+                ply_path=norm_rel,
                 render_dir=os.path.relpath(render_dir, start=str(ply_out_dir)),
                 per_view=per_view,
                 summary=summary,
